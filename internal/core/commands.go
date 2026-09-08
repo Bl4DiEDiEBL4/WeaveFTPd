@@ -1844,21 +1844,16 @@ func (s *Session) processCommand(cmd string, args []string, tlsConfig *tls.Confi
 				return false
 			}
 		} else if info, err := os.Stat(localPath); err == nil && !info.IsDir() {
+			var names []string
 			if s.Config.XdupeEnabled && s.XDupeMode > 0 {
 				dirEntries, readErr := os.ReadDir(filepath.Dir(localPath))
 				if readErr == nil {
-					var names []string
 					for _, entry := range dirEntries {
 						names = append(names, entry.Name())
 					}
-					for _, line := range xdupeResponseLines(s.XDupeMode, names) {
-						fmt.Fprintf(s.Conn, "553-%s\r\n", line)
-					}
 				}
-				fmt.Fprintf(s.Conn, "553 %s: File exists.\r\n", fileName)
-			} else {
-				fmt.Fprintf(s.Conn, "553 %s: File exists.\r\n", fileName)
 			}
+			writeDuplicateFileResponse(s, fileName, names)
 			return false
 		}
 
@@ -2765,10 +2760,10 @@ func writeDuplicateFileResponse(s *Session, fileName string, existingNames []str
 		for _, line := range xdupeResponseLines(s.XDupeMode, duplicateResponseFileNames(existingNames, fileName)) {
 			fmt.Fprintf(s.Conn, "553-%s\r\n", line)
 		}
-		fmt.Fprintf(s.Conn, "553 %s: File exists.\r\n", fileName)
+		fmt.Fprintf(s.Conn, "553 Requested action not taken. File exists.\r\n")
 		return
 	}
-	fmt.Fprintf(s.Conn, "553 %s: File exists.\r\n", fileName)
+	fmt.Fprintf(s.Conn, "553 Requested action not taken. File exists.\r\n")
 }
 
 func writeDuplicateUploadResponse(s *Session, bridge MasterBridge, uploadDir, fileName string, err error) bool {
