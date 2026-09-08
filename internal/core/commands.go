@@ -876,12 +876,12 @@ func (s *Session) processCommand(cmd string, args []string, tlsConfig *tls.Confi
 					pretTarget = path.Clean(preparedArg)
 				}
 				pretTarget = bridge.ResolvePath(pretTarget)
-				if uploadPathReserved(pretTarget) || pendingUploadForReply(bridge, pretTarget) {
-					writeUploadAlreadyInProgressResponse(s, path.Base(pretTarget), existingFileNamesForXDupe(bridge.ListDir(path.Dir(pretTarget))))
-					return false
-				}
 				if bridge.FileExists(pretTarget) {
 					writeDuplicateFileResponse(s, path.Base(pretTarget), existingFileNamesForXDupe(bridge.ListDir(path.Dir(pretTarget))))
+					return false
+				}
+				if uploadPathReserved(pretTarget) || pendingUploadForReply(bridge, pretTarget) {
+					writeUploadAlreadyInProgressResponse(s, path.Base(pretTarget), existingFileNamesForXDupe(bridge.ListDir(path.Dir(pretTarget))))
 					return false
 				}
 			}
@@ -1550,13 +1550,17 @@ func (s *Session) processCommand(cmd string, args []string, tlsConfig *tls.Confi
 					fmt.Fprintf(s.Conn, "550 Upload prepare failed: %v\r\n", err)
 					return false
 				}
-				if pendingUploadForReply(bridge, uploadPath) {
-					writeUploadAlreadyInProgressResponse(s, fileName, existingFileNamesForXDupe(getMasterUploadEntries(bridge)))
-					return false
-				}
 				fileExists = bridge.FileExists(uploadPath)
 				if s.Config.XdupeEnabled {
 					xdupeNames = existingFileNamesForXDupe(getMasterUploadEntries(bridge))
+				}
+				if fileExists && restOffset == 0 {
+					writeDuplicateFileResponse(s, fileName, xdupeNames)
+					return false
+				}
+				if pendingUploadForReply(bridge, uploadPath) {
+					writeUploadAlreadyInProgressResponse(s, fileName, xdupeNames)
+					return false
 				}
 			}
 			if fileExists && restOffset == 0 {
